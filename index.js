@@ -41,12 +41,6 @@ const transactionSchema = Joi.object({
     value: Joi.number().required().min(0)
 });
 
-const sessionSchema = Joi.object({
-    _id: Joi.string().hex().length(24),
-    userId: Joi.string().hex().length(24),
-    token: Joi.string().required()
-});
-
 server.post('/sign-up', async (req, res) => {
     const validation = signUpSchema.validate(req.body, { abortEarly: false });
     if (validation.error) {
@@ -184,10 +178,35 @@ server.post('/transactions', async (req, res) => {
 });
 
 server.get('/transactions', async (req, res) => {
-    const transactions = await db.collection('transactions').find({}).toArray();
+    const {authorization} = req.headers;
+    const token = authorization?.replace('Bearer ', '');
 
-    res.send(transactions);
+    if (!token) {
+        res.sendStatus(401);
+        return;
+    }
+
+    try {
+
+        const session = await db.collection('sessions').findOne({ token });
+    
+        if (!session) {
+            res.sendStatus(401);
+            return;
+        }
+    
+        const transactions = await db.collection('transactions').find({ userId: session.userId }).toArray();
+    
+        res.send(transactions);
+        
+    } catch (error) {
+        res.status(500).send(error);
+    }
+
+    return;
 });
+
+// Testing part (delete after finishing project)
 
 server.get('/sessions', async (req, res) => {
     const sessions = await db.collection('sessions').find({}).toArray();
