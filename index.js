@@ -19,17 +19,23 @@ let db;
 const dbName = 'my-wallet';
 mongoClient.connect().then(() => db = mongoClient.db(dbName));
 
-const userSchema = Joi.object({
+const signUpSchema = Joi.object({
     _id: Joi.string().hex().length(24),
     name: Joi.string().required().min(1),
     email: Joi.string().email().required(),
-    password: Joi.string().required().min(8),
+    password: Joi.string().required().min(6),
     passwordConfirmation: Joi.string().required().valid(Joi.ref('password'))
 });
 
-const extractSchema = Joi.object({
+const signInSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required().min(1),
+});
+
+const transactionSchema = Joi.object({
     _id: Joi.string().hex().length(24),
     usedId: Joi.string().hex().length(24),
+    type: Joi.string().valid("expense", "income").required(),
     date: Joi.date().required(),
     description: Joi.string().required().min(1),
     value: Joi.number().required().min(0)
@@ -42,7 +48,7 @@ const sessionSchema = Joi.object({
 });
 
 server.post('/sign-up', async (req, res) => {
-    const validation = userSchema.validate(req.body, { abortEarly: false });
+    const validation = signUpSchema.validate(req.body, { abortEarly: false });
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message);
         res.status(422).send(errors);
@@ -66,7 +72,6 @@ server.post('/sign-up', async (req, res) => {
 
         res.sendStatus(201);
     } catch (error) {
-        console.log(error);
         res.status(500).send(error)
     }
 
@@ -77,7 +82,7 @@ async function checkParticipant(email) {
     let response;
     
     try {
-        const existingParticipant = await db.collection("users").findOne({email});
+        const existingParticipant = await db.collection("users").findOne({ email });
 
         if (existingParticipant !== null) {
             response = true;
@@ -91,6 +96,104 @@ async function checkParticipant(email) {
 
     return response;
 }
+
+server.post('/sign-in', async (req, res) => {
+    const validation = signInSchema.validate(req.body, { abortEarly: false });
+    if (validation.error) {
+        const errors = validation.error.details.map(error => error.message);
+        res.status(422).send(errors);
+        return;
+    }
+
+    const {email, password} = req.body;
+
+    try {
+
+        const user = await db.collection('users').findOne({ email });
+
+        if (user && bcrypt.compareSync(password, user.password)) {
+            const token = uuid();
+    
+            await db.collection('sessions').insertOne({
+                userId: user._id,
+                token,
+            });
+    
+            res.send(token);
+        } else {
+            res.sendStatus(404);
+        }
+
+        return;
+        
+    } catch (error) {
+        res.status(500).send(error);
+        return;
+    }
+});
+
+server.post('/transactions', async (req, res) => {
+    const {authorization} = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        res.sendStatus(401);
+        return;
+    }
+
+    const validation = transactionSchema.validate(req.body, { abortEarly: false });
+    if (validation.error) {
+        const errors = validation.error.details.map(error => error.message);
+        res.status(422).send(errors);
+        return;
+    }
+
+    try {
+        
+        const session = await db.collection('sessions').findOne({ token });
+
+        if (!session) {
+            return res.sendStatus(401);
+        }
+        const user = await db.collection('users').findOne({ _id: session.userId });
+
+        if (!user) {
+            res.sendStatus(401);
+            return;
+        }
+
+        const { type, date, description, value } = req.body;
+
+        await db.collection('transactions').insertOne({
+            userId: user._id,
+            type,
+            date,
+            description,
+            value,
+        });
+
+        res.sendStatus(201);
+
+        return;
+
+    } catch (error) {
+        res.status(500).send(error);
+        return;
+    }
+
+});
+
+server.get('/transactions', async (req, res) => {
+    const transactions = await db.collection('transactions').find({}).toArray();
+
+    res.send(transactions);
+});
+
+server.get('/sessions', async (req, res) => {
+    const sessions = await db.collection('sessions').find({}).toArray();
+
+    res.send(sessions);
+});
 
 server.get('/users', async (req, res) => {
     const users = await db.collection('users').find({}).toArray();
