@@ -25,8 +25,6 @@ async function signUp (req, res) {
         return;
     }
 
-    console.log(db);
-
     const {email, password} = req.body;
     const name = stripHtml(req.body.name).result.trim();
 
