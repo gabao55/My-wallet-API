@@ -82,4 +82,31 @@ async function deleteTransaction (req, res) {
     return;
 }
 
-export { createTransaction, getUserTransactions, deleteTransaction };
+async function updateTransaction (req, res) {
+    const _id = new ObjectId(req.body._id);
+    const { description, value } = req.body;
+
+    try {
+
+        const transaction = await db.collection('transactions').findOne({ _id });
+
+        if (!transaction) {
+            res.sendStatus(404);
+            return;
+        }
+        
+        await db.collection('transactions').updateOne(
+            { _id },
+            { $set: { description, value } }
+        );
+
+        res.sendStatus(200);
+
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+
+    return;
+}
+
+export { createTransaction, getUserTransactions, deleteTransaction, updateTransaction };
