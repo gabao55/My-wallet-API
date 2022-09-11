@@ -11,34 +11,16 @@ const transactionSchema = Joi.object({
 });
 
 async function createTransaction (req, res) {
-    const {authorization} = req.headers;
-    const token = authorization?.replace('Bearer ', '');
-
-    if (!token) {
-        res.sendStatus(401);
-        return;
-    }
-
     const validation = transactionSchema.validate(req.body, { abortEarly: false });
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message);
         res.status(422).send(errors);
         return;
     }
+    
+    const user = res.locals.user;
 
     try {
-        
-        const session = await db.collection('sessions').findOne({ token });
-
-        if (!session) {
-            return res.sendStatus(401);
-        }
-        const user = await db.collection('users').findOne({ _id: session.userId });
-
-        if (!user) {
-            res.sendStatus(401);
-            return;
-        }
 
         const { type, date, description, value } = req.body;
 
@@ -62,24 +44,10 @@ async function createTransaction (req, res) {
 }
 
 async function getUserTransactions (req, res) {
-    const {authorization} = req.headers;
-    const token = authorization?.replace('Bearer ', '');
-
-    if (!token) {
-        res.sendStatus(401);
-        return;
-    }
-
+    const user = res.locals.user;
     try {
-
-        const session = await db.collection('sessions').findOne({ token });
     
-        if (!session) {
-            res.sendStatus(401);
-            return;
-        }
-    
-        const transactions = await db.collection('transactions').find({ userId: session.userId }).toArray();
+        const transactions = await db.collection('transactions').find({ userId: user._id }).toArray();
     
         res.send(transactions);
         
