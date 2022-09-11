@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { ObjectId } from 'mongodb';
 import db from '../database/db.js';
 
 const transactionSchema = Joi.object({
@@ -58,4 +59,27 @@ async function getUserTransactions (req, res) {
     return;
 }
 
-export { createTransaction, getUserTransactions };
+async function deleteTransaction (req, res) {
+    const _id = new ObjectId(req.headers._id);
+
+    try {
+
+        const transaction = await db.collection('transactions').findOne({ _id });
+
+        if (!transaction) {
+            res.sendStatus(404);
+            return;
+        }
+        
+        await db.collection('transactions').deleteOne({ _id });
+
+        res.sendStatus(200);
+
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+
+    return;
+}
+
+export { createTransaction, getUserTransactions, deleteTransaction };
