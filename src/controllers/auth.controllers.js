@@ -3,6 +3,8 @@ import { v4 as uuid } from 'uuid';
 import { stripHtml } from "string-strip-html";
 import bcrypt from 'bcrypt';
 import db from '../database/db.js';
+import { STATUS_CODE } from '../enums/statusCode.js';
+import { COLLECTIONS } from '../enums/collections.js';
 
 const signUpSchema = Joi.object({
     _id: Joi.string().hex().length(24),
@@ -21,7 +23,7 @@ async function signUp (req, res) {
     const validation = signUpSchema.validate(req.body, { abortEarly: false });
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message);
-        res.status(422).send(errors);
+        res.status(STATUS_CODE.BAD_REQUEST).send(errors);
         return;
     }
 
@@ -29,20 +31,20 @@ async function signUp (req, res) {
     const name = stripHtml(req.body.name).result.trim();
 
     if (await checkParticipant(email)) {
-        res.sendStatus(409);
+        res.sendStatus(STATUS_CODE.CONFLICT);
         return;
     }
 
     try {
-        await db.collection("users").insertOne({
+        await db.collection(COLLECTIONS.USERS).insertOne({
             name,
             email,
             password: bcrypt.hashSync(password, 10),
         });
 
-        res.sendStatus(201);
+        res.sendStatus(STATUS_CODE.CREATED);
     } catch (error) {
-        res.status(500).send(error.message);
+        res.status(STATUS_CODE.SERVER_ERROR).send(error.message);
     }
 
     return;
@@ -52,7 +54,7 @@ async function checkParticipant(email) {
     let response;
     
     try {
-        const existingParticipant = await db.collection("users").findOne({ email });
+        const existingParticipant = await db.collection(COLLECTIONS.USERS).findOne({ email });
 
         if (existingParticipant !== null) {
             response = true;
@@ -71,7 +73,7 @@ async function signIn (req, res) {
     const validation = signInSchema.validate(req.body, { abortEarly: false });
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message);
-        res.status(422).send(errors);
+        res.status(STATUS_CODE.BAD_REQUEST).send(errors);
         return;
     }
 
@@ -79,25 +81,25 @@ async function signIn (req, res) {
 
     try {
 
-        const user = await db.collection('users').findOne({ email });
+        const user = await db.collection(COLLECTIONS.USERS).findOne({ email });
 
         if (user && bcrypt.compareSync(password, user.password)) {
             const token = uuid();
     
-            await db.collection('sessions').insertOne({
+            await db.collection(COLLECTIONS.SESSIONS).insertOne({
                 userId: user._id,
                 token,
             });
     
             res.send({ token, name: user.name });
         } else {
-            res.sendStatus(404);
+            res.sendStatus(STATUS_CODE.NOT_FOUND);
         }
 
         return;
         
     } catch (error) {
-        res.status(500).send(error.message);
+        res.status(STATUS_CODE.SERVER_ERROR).send(error.message);
         return;
     }
 }
