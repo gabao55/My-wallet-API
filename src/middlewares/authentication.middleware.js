@@ -24,6 +24,8 @@ async function userAuthentication (req, res, next) {
     res.locals.user = user;
 
     next();
+
+    return;
 }
 
 export default userAuthentication;

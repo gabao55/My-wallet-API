@@ -42,7 +42,7 @@ async function signUp (req, res) {
 
         res.sendStatus(201);
     } catch (error) {
-        res.status(500).send(error.message)
+        res.status(500).send(error.message);
     }
 
     return;

@@ -6,9 +6,11 @@ const router = express.Router();
 
 router.use(userAuthentication);
 
-router.post('/transactions', createTransaction);
-router.get('/transactions', getUserTransactions);
-router.delete('/transactions', deleteTransaction);
-router.put('/transactions', updateTransaction);
+const path = '/transactions';
+
+router.post(path, createTransaction);
+router.get(path, getUserTransactions);
+router.delete(path, deleteTransaction);
+router.put(path, updateTransaction);
 
 export default router;
