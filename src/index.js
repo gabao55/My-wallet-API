@@ -10,4 +10,4 @@ server.use(cors());
 server.use(authRouter);
 server.use(transactionsRouter);
 
-server.listen(process.env.PORT_API, () => console.log(`Listening to PORT ${process.env.PORT_API}`));
+server.listen(process.env.PORT, () => console.log(`Listening to PORT ${process.env.PORT}`));
